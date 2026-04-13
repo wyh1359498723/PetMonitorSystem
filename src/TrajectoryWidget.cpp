@@ -19,7 +19,7 @@ TrajectoryWidget::TrajectoryWidget(QWidget *parent)
 {
     setAutoFillBackground(true);
     QPalette pal = palette();
-    pal.setColor(QPalette::Window, QColor(40, 40, 50));
+    pal.setColor(QPalette::Window, QColor(20, 20, 28));
     setPalette(pal);
 }
 
@@ -47,7 +47,7 @@ void TrajectoryWidget::paintEvent(QPaintEvent * /*event*/)
     int h = height();
 
     if (m_tracks.isEmpty()) {
-        painter.setPen(QColor(150, 150, 150));
+        painter.setPen(QColor(120, 120, 140));
         painter.drawText(rect(), Qt::AlignCenter, QStringLiteral("暂无轨迹数据"));
         return;
     }

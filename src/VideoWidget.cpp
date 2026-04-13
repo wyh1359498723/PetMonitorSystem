@@ -1,16 +1,47 @@
 #include "VideoWidget.h"
+#include <QImage>
 #include <QPainter>
 #include <QPen>
 #include <QResizeEvent>
 #include <opencv2/imgproc.hpp>
+
+namespace {
+
+/// 在独立 QImage 上绘制白字再贴图，避免主窗口 QStyleSheet 的 color 影响 QPainter::drawText（否则常为黑色）
+void drawLabelTextWhite(QPainter &destPainter, const QFont &font, const QRect &textRect,
+                        const QString &text)
+{
+    if (textRect.width() <= 0 || textRect.height() <= 0)
+        return;
+
+    QImage img(textRect.size(), QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::transparent);
+
+    QPainter p(&img);
+    p.setFont(font);
+    p.setPen(QPen(QColor(255, 255, 255), 1));
+    p.setBrush(Qt::NoBrush);
+    p.setRenderHint(QPainter::TextAntialiasing);
+    p.drawText(QRect(0, 0, textRect.width(), textRect.height()), Qt::AlignCenter, text);
+    p.end();
+
+    destPainter.drawImage(textRect.topLeft(), img);
+}
+
+} // namespace
 
 VideoWidget::VideoWidget(QWidget *parent)
     : QWidget(parent)
     , m_labelFont("Microsoft YaHei", 10, QFont::Bold)
 {
     setAutoFillBackground(true);
+    // 避免样式表把本控件文字色设成深色，间接影响部分绘制路径
+    setAttribute(Qt::WA_StyledBackground, false);
+
     QPalette pal = palette();
     pal.setColor(QPalette::Window, Qt::black);
+    pal.setColor(QPalette::Text, Qt::white);
+    pal.setColor(QPalette::WindowText, Qt::white);
     setPalette(pal);
     setAttribute(Qt::WA_OpaquePaintEvent);
 }
@@ -19,9 +50,23 @@ void VideoWidget::updateFrame(const cv::Mat &frame, const QVector<DetectionResul
 {
     if (frame.empty()) return;
 
-    // BGR -> RGB + construct QImage, zero-copy into QImage then deep-copy once
+    // 摄像头可能为灰度 / BGR / BGRA，需分别转换
     cv::Mat rgb;
-    cv::cvtColor(frame, rgb, cv::COLOR_BGR2RGB);
+    switch (frame.channels()) {
+    case 1:
+        cv::cvtColor(frame, rgb, cv::COLOR_GRAY2RGB);
+        break;
+    case 3:
+        cv::cvtColor(frame, rgb, cv::COLOR_BGR2RGB);
+        break;
+    case 4:
+        cv::cvtColor(frame, rgb, cv::COLOR_BGRA2RGB);
+        break;
+    default:
+        return;
+    }
+    if (rgb.empty()) return;
+
     m_currentImage = QImage(rgb.data, rgb.cols, rgb.rows,
                             static_cast<int>(rgb.step),
                             QImage::Format_RGB888).copy();
@@ -85,8 +130,11 @@ void VideoWidget::paintEvent(QPaintEvent * /*event*/)
 
     // Draw detection overlays
     painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::TextAntialiasing);
     painter.setFont(m_labelFont);
     QFontMetrics fm(m_labelFont);
+
+    static const QColor kLabelBgColor(0, 0, 0, 200);
 
     for (const auto &det : m_detections) {
         QColor color = colorForBehavior(det.behavior);
@@ -101,7 +149,7 @@ void VideoWidget::paintEvent(QPaintEvent * /*event*/)
         painter.setBrush(Qt::NoBrush);
         painter.drawRect(x, y, w, h);
 
-        // Label
+        // Label：深色底 + 纯白字，避免与暗色界面/视频背景混在一起看不清
         QString label = QStringLiteral("%1 %2 %3%")
                             .arg(det.className)
                             .arg(det.behavior)
@@ -111,9 +159,8 @@ void VideoWidget::paintEvent(QPaintEvent * /*event*/)
         textRect.adjust(-4, -2, 4, 2);
         textRect.moveTopLeft(QPoint(x, y - textRect.height()));
 
-        painter.fillRect(textRect, QColor(color.red(), color.green(), color.blue(), 180));
-        painter.setPen(Qt::white);
-        painter.drawText(textRect, Qt::AlignCenter, label);
+        painter.fillRect(textRect, kLabelBgColor);
+        drawLabelTextWhite(painter, m_labelFont, textRect, label);
     }
 }
 

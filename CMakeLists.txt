@@ -29,6 +29,7 @@ set(SOURCES
     src/StatisticsWidget.cpp
     src/AlertManager.cpp
     src/FrameProcessor.cpp
+    src/PetPresenceRecorder.cpp
 )
 
 set(HEADERS
@@ -43,6 +44,7 @@ set(HEADERS
     src/AlertManager.h
     src/DetectionResult.h
     src/FrameProcessor.h
+    src/PetPresenceRecorder.h
 )
 
 set(RESOURCES

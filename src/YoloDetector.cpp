@@ -171,4 +171,5 @@ QVector<DetectionResult> YoloDetector::postprocess(const cv::Mat &output,
 void YoloDetector::setConfidenceThreshold(float threshold) { m_confThreshold = threshold; }
 void YoloDetector::setNmsThreshold(float threshold) { m_nmsThreshold = threshold; }
 void YoloDetector::setInputSize(int size) { m_inputSize = size; }
+int YoloDetector::inputSize() const { return m_inputSize; }
 bool YoloDetector::isLoaded() const { return m_loaded; }

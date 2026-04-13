@@ -20,6 +20,7 @@ public:
     void setConfidenceThreshold(float threshold);
     void setNmsThreshold(float threshold);
     void setInputSize(int size);
+    int inputSize() const;
     bool isLoaded() const;
 
 private:

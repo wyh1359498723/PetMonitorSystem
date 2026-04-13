@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QFont>
 #include <QMetaType>
 #include <QVector>
 #include <QMap>
@@ -29,6 +30,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setApplicationName("PetMonitorSystem");
     app.setOrganizationName("GraduationProject");
+    app.setFont(QFont(QStringLiteral("Microsoft YaHei UI"), 10));
 
     MainWindow w;
     w.show();

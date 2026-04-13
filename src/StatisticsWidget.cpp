@@ -36,6 +36,7 @@ void StatisticsWidget::setupCharts()
     m_pieChart = new QChart();
     m_pieChart->addSeries(m_pieSeries);
     m_pieChart->setTitle(QStringLiteral("行为时间分布"));
+    m_pieChart->setTheme(QChart::ChartThemeDark);
     m_pieChart->setAnimationOptions(QChart::NoAnimation);
     m_pieChart->legend()->setAlignment(Qt::AlignRight);
     m_pieChart->setMargins(QMargins(2, 2, 2, 2));
@@ -51,6 +52,7 @@ void StatisticsWidget::setupCharts()
     m_lineChart = new QChart();
     m_lineChart->addSeries(m_lineSeries);
     m_lineChart->setTitle(QStringLiteral("活动量趋势"));
+    m_lineChart->setTheme(QChart::ChartThemeDark);
     m_lineChart->setAnimationOptions(QChart::NoAnimation);
     m_lineChart->setMargins(QMargins(2, 2, 2, 2));
 

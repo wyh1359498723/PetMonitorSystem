@@ -60,9 +60,13 @@ void AlertManager::showAlert(const QString &message, const QString &level)
     m_alertVisible = true;
 
     if (level == "danger") {
-        setStyleSheet("background-color: #dc3545;");
+        setStyleSheet(
+            "background: qlineargradient(x1:0,y1:0,x2:1,y2:0, "
+            "stop:0 #7f1d1d, stop:1 #dc2626); border-radius: 6px;");
     } else {
-        setStyleSheet("background-color: #ffc107;");
+        setStyleSheet(
+            "background: qlineargradient(x1:0,y1:0,x2:1,y2:0, "
+            "stop:0 #78350f, stop:1 #d97706); border-radius: 6px;");
     }
 
     m_alertLabel->setText(message);
