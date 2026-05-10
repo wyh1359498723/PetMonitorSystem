@@ -8,8 +8,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # ---- Qt ----
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Charts)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Charts)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Charts Sql)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Charts Sql)
 
 # ---- OpenCV ----
 # 指定 OpenCV 安装路径 (预编译 Windows 版本)
@@ -30,6 +30,8 @@ set(SOURCES
     src/AlertManager.cpp
     src/FrameProcessor.cpp
     src/PetPresenceRecorder.cpp
+    src/DatabaseManager.cpp
+    src/HistoryDialog.cpp
 )
 
 set(HEADERS
@@ -45,6 +47,8 @@ set(HEADERS
     src/DetectionResult.h
     src/FrameProcessor.h
     src/PetPresenceRecorder.h
+    src/DatabaseManager.h
+    src/HistoryDialog.h
 )
 
 set(RESOURCES
@@ -61,6 +65,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Charts
+    Qt${QT_VERSION_MAJOR}::Sql
     ${OpenCV_LIBS}
 )
 
