@@ -16,6 +16,8 @@ public:
     explicit VideoWidget(QWidget *parent = nullptr);
 
     void updateFrame(const cv::Mat &frame, const QVector<DetectionResult> &detections);
+    /// 传入人体检测框，在帧上应用马赛克后再显示
+    void setPersonDetections(const QVector<DetectionResult> &persons);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -36,6 +38,7 @@ private:
     bool m_needRescale = true;
 
     QFont m_labelFont;
+    QVector<DetectionResult> m_personDetections;
 };
 
 #endif // VIDEOWIDGET_H

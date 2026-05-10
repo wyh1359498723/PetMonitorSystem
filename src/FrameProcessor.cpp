@@ -141,11 +141,11 @@ void FrameProcessor::runFullVideoProcess(const QString &filePath)
                 break;
 
             frameIndex++;
-            QVector<DetectionResult> detections = m_detector->detect(frame);
+            auto allDet = m_detector->detectAll(frame);
             if (!m_running)
                 break;
 
-            bool hasPet = !detections.isEmpty();
+            bool hasPet = !allDet.pets.isEmpty();
             const int blockStart = frameIndex;
 
             for (int k = 1; k < stride && m_running; ++k) {
@@ -228,9 +228,10 @@ void FrameProcessor::process()
 
         if (frame.empty()) continue;
 
-        QVector<DetectionResult> detections = m_detector->detect(frame);
+        auto allResults = m_detector->detectAll(frame);
         if (!m_running) break;
 
+        QVector<DetectionResult> &detections = allResults.pets;
         m_tracker->update(detections);
         m_analyzer->analyze(m_tracker->tracks());
 
@@ -243,7 +244,8 @@ void FrameProcessor::process()
                           m_tracker->tracks(),
                           m_analyzer->behaviorDurations(),
                           m_analyzer->activityTimeline(),
-                          frameIndex);
+                          frameIndex,
+                          allResults.persons);
 
         emit alertCheck(m_tracker->tracks());
     }

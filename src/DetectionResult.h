@@ -8,12 +8,13 @@
 
 struct DetectionResult {
     cv::Rect bbox;
-    int classId = -1;        // COCO: 15=cat, 16=dog
+    int classId = -1;        // COCO: 0=person, 15=cat, 16=dog
     QString className;
     float confidence = 0.0f;
     QPointF center;
     int trackId = -1;
     QString behavior;
+    bool isPerson = false;   // true 时仅用于马赛克，不参与跟踪/行为
 };
 
 enum class PetBehavior {

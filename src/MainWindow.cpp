@@ -7,6 +7,8 @@
 #include "AlertManager.h"
 #include "BehaviorAnalyzer.h"
 #include "DetectionResult.h"
+#include "DatabaseManager.h"
+#include "HistoryDialog.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -48,6 +50,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_statisticsWidget = new StatisticsWidget(this);
     m_alertManager     = new AlertManager(this);
 
+    DatabaseManager::instance().open();
+
     setupUi();
     applyTheme();
     connectSignals();
@@ -61,8 +65,13 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    if (m_currentSessionId > 0) {
+        DatabaseManager::instance().saveBehaviorStats(m_currentSessionId, m_pendingDurations);
+        DatabaseManager::instance().closeSession(m_currentSessionId);
+    }
     m_frameProcessor->stop();
     delete m_frameProcessor;
+    DatabaseManager::instance().close();
 }
 
 void MainWindow::loadModel()
@@ -254,6 +263,11 @@ void MainWindow::setupUi()
     m_btnExport->setToolTip(QStringLiteral("本地视频：需先完成「整段统计」；摄像头：结束分析后"));
     controlLayout->addWidget(m_btnExport);
 
+    m_btnHistory = new QPushButton(QStringLiteral("历史数据"));
+    m_btnHistory->setObjectName(QStringLiteral("btnSecondary"));
+    m_btnHistory->setToolTip(QStringLiteral("查看历史分析会话的行为统计、告警记录与出现时段"));
+    controlLayout->addWidget(m_btnHistory);
+
     auto *trajGroup = new QGroupBox(QStringLiteral("运动轨迹"));
     auto *trajLayout = new QVBoxLayout(trajGroup);
     m_trajectoryWidget->setMinimumHeight(200);
@@ -314,6 +328,7 @@ void MainWindow::connectSignals()
     connect(m_btnGenerateWholeStats, &QPushButton::clicked, this,
             &MainWindow::onGenerateWholeTableStats);
     connect(m_btnExport, &QPushButton::clicked, this, &MainWindow::onExportPresenceCsv);
+    connect(m_btnHistory, &QPushButton::clicked, this, &MainWindow::onShowHistory);
     connect(m_btnStartAnalysis, &QPushButton::clicked, this, &MainWindow::onStartCameraAnalysis);
     connect(m_btnStopAnalysis, &QPushButton::clicked, this, &MainWindow::onStopCameraAnalysis);
     connect(m_slider, &QSlider::sliderMoved, this, &MainWindow::onSliderMoved);
@@ -338,6 +353,11 @@ void MainWindow::connectSignals()
             this, &MainWindow::onFullVideoFinished, Qt::QueuedConnection);
     connect(m_frameProcessor, &FrameProcessor::fullVideoFailed,
             this, &MainWindow::onFullVideoFailed, Qt::QueuedConnection);
+
+    connect(m_alertManager, &AlertManager::alertTriggered, this, [this](const QString &msg) {
+        if (m_currentSessionId > 0)
+            DatabaseManager::instance().saveAlert(m_currentSessionId, msg, QStringLiteral("warning"));
+    });
 }
 
 void MainWindow::resetPlaybackState()
@@ -378,10 +398,18 @@ void MainWindow::onOpenFile()
         return;
     }
 
+    if (m_currentSessionId > 0) {
+        DatabaseManager::instance().saveBehaviorStats(m_currentSessionId, m_pendingDurations);
+        DatabaseManager::instance().closeSession(m_currentSessionId);
+    }
+
     m_isVideoFileMode = true;
     m_currentVideoFilePath = filePath;
     m_cameraAnalyzing = false;
     m_cameraExportReady = false;
+
+    m_currentSessionId = DatabaseManager::instance().createSession(
+        filePath, m_videoPlayer->fps(), m_videoPlayer->totalFrames());
     m_btnStartAnalysis->setEnabled(false);
     m_btnStopAnalysis->setEnabled(false);
 
@@ -495,6 +523,10 @@ void MainWindow::onFullVideoFinished()
 
     m_presenceRecorder.finalize();
 
+    if (m_currentSessionId > 0)
+        DatabaseManager::instance().savePresenceSegments(
+            m_currentSessionId, m_presenceRecorder.segments());
+
     restoreVideoPlayerAfterFullScan();
 
     if (m_isVideoFileMode) {
@@ -544,12 +576,21 @@ void MainWindow::onOpenCamera()
         return;
     }
 
+    if (m_currentSessionId > 0) {
+        DatabaseManager::instance().saveBehaviorStats(m_currentSessionId, m_pendingDurations);
+        DatabaseManager::instance().closeSession(m_currentSessionId);
+    }
+
     m_isVideoFileMode = false;
     m_currentVideoFilePath.clear();
     m_fileBatchRunning = false;
     m_cameraAnalyzing = false;
     m_cameraExportReady = false;
     m_btnExport->setEnabled(false);
+
+    m_currentSessionId = DatabaseManager::instance().createSession(
+        QStringLiteral("camera:%1").arg(deviceIndex),
+        m_videoPlayer->fps(), 0);
 
     m_btnStartAnalysis->setEnabled(true);
     m_btnStopAnalysis->setEnabled(false);
@@ -592,6 +633,14 @@ void MainWindow::onStopCameraAnalysis()
     m_btnStopAnalysis->setEnabled(false);
 
     m_presenceRecorder.finalize();
+
+    if (m_currentSessionId > 0) {
+        DatabaseManager::instance().savePresenceSegments(
+            m_currentSessionId, m_presenceRecorder.segments());
+        DatabaseManager::instance().saveBehaviorStats(
+            m_currentSessionId, m_pendingDurations);
+    }
+
     m_trajectoryWidget->updateTrajectories(m_lastTracks, m_videoWidth, m_videoHeight);
     m_statisticsWidget->updateStatistics(m_pendingDurations, m_pendingTimeline);
     m_btnExport->setEnabled(true);
@@ -666,10 +715,12 @@ void MainWindow::onDetectionResults(const QVector<DetectionResult> &detections,
                                      const QMap<int, TrackInfo> &tracks,
                                      const QMap<PetBehavior, int> &durations,
                                      const QVector<QPair<int, double>> &timeline,
-                                     int frameIndex)
+                                     int frameIndex,
+                                     const QVector<DetectionResult> &personDetections)
 {
     m_lastDetections = detections;
     m_lastTracks = tracks;
+    m_videoWidget->setPersonDetections(personDetections);
 
     // 本地文件时段表仅由「整段统计」扫描写入；摄像头由实时区间写入
     if (m_videoPlayer->isLiveCamera() && m_cameraAnalyzing) {
@@ -751,4 +802,11 @@ void MainWindow::onExportPresenceCsv()
         this,
         QStringLiteral("导出成功"),
         QStringLiteral("已导出 %1 个大段连续时段。\n可用 Excel 打开该 CSV 文件。").arg(n));
+}
+
+void MainWindow::onShowHistory()
+{
+    auto *dlg = new HistoryDialog(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->exec();
 }

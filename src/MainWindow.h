@@ -28,6 +28,8 @@ class QSpinBox;
 class QFrame;
 class QSplitter;
 
+class HistoryDialog;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -39,6 +41,7 @@ public:
 private slots:
     void onOpenFile();
     void onOpenCamera();
+    void onShowHistory();
     void onPlayPause();
     void onFrameReady(const cv::Mat &frame);
     void onSliderMoved(int position);
@@ -57,7 +60,8 @@ private slots:
                             const QMap<int, TrackInfo> &tracks,
                             const QMap<PetBehavior, int> &durations,
                             const QVector<QPair<int, double>> &timeline,
-                            int frameIndex);
+                            int frameIndex,
+                            const QVector<DetectionResult> &personDetections);
     void onAlertCheck(const QMap<int, TrackInfo> &tracks);
 
 private:
@@ -76,6 +80,7 @@ private:
     StatisticsWidget *m_statisticsWidget = nullptr;
     AlertManager     *m_alertManager     = nullptr;
 
+    QPushButton    *m_btnHistory = nullptr;
     QPushButton    *m_btnOpen   = nullptr;
     QPushButton    *m_btnCamera = nullptr;
     QPushButton    *m_btnPlay   = nullptr;
@@ -123,6 +128,8 @@ private:
 
     QFrame    *m_videoFrame   = nullptr;
     QSplitter *m_mainSplitter = nullptr;
+
+    qint64 m_currentSessionId = -1;
 };
 
 #endif // MAINWINDOW_H

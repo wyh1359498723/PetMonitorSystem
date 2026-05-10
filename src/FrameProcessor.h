@@ -45,7 +45,8 @@ signals:
                       const QMap<int, TrackInfo> &tracks,
                       const QMap<PetBehavior, int> &durations,
                       const QVector<QPair<int, double>> &timeline,
-                      int frameIndex);
+                      int frameIndex,
+                      const QVector<DetectionResult> &personDetections);
     void alertCheck(const QMap<int, TrackInfo> &tracks);
 
     void fullVideoProgress(int currentFrame, int totalFrames);

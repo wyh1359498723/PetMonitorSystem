@@ -46,26 +46,41 @@ VideoWidget::VideoWidget(QWidget *parent)
     setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
+void VideoWidget::setPersonDetections(const QVector<DetectionResult> &persons)
+{
+    m_personDetections = persons;
+}
+
+static void applyMosaic(cv::Mat &img, const cv::Rect &roi, int blockSize = 15)
+{
+    cv::Rect safe = roi & cv::Rect(0, 0, img.cols, img.rows);
+    if (safe.width <= 0 || safe.height <= 0) return;
+    cv::Mat region = img(safe);
+    cv::Mat small;
+    int sw = std::max(1, safe.width / blockSize);
+    int sh = std::max(1, safe.height / blockSize);
+    cv::resize(region, small, cv::Size(sw, sh), 0, 0, cv::INTER_LINEAR);
+    cv::resize(small, region, cv::Size(safe.width, safe.height), 0, 0, cv::INTER_NEAREST);
+}
+
 void VideoWidget::updateFrame(const cv::Mat &frame, const QVector<DetectionResult> &detections)
 {
     if (frame.empty()) return;
 
-    // 摄像头可能为灰度 / BGR / BGRA，需分别转换
-    cv::Mat rgb;
+    cv::Mat bgr;
     switch (frame.channels()) {
-    case 1:
-        cv::cvtColor(frame, rgb, cv::COLOR_GRAY2RGB);
-        break;
-    case 3:
-        cv::cvtColor(frame, rgb, cv::COLOR_BGR2RGB);
-        break;
-    case 4:
-        cv::cvtColor(frame, rgb, cv::COLOR_BGRA2RGB);
-        break;
-    default:
-        return;
+    case 1:  cv::cvtColor(frame, bgr, cv::COLOR_GRAY2BGR); break;
+    case 3:  bgr = frame.clone(); break;
+    case 4:  cv::cvtColor(frame, bgr, cv::COLOR_BGRA2BGR); break;
+    default: return;
     }
-    if (rgb.empty()) return;
+    if (bgr.empty()) return;
+
+    for (const auto &p : m_personDetections)
+        applyMosaic(bgr, p.bbox);
+
+    cv::Mat rgb;
+    cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
 
     m_currentImage = QImage(rgb.data, rgb.cols, rgb.rows,
                             static_cast<int>(rgb.step),

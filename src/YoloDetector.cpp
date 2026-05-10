@@ -120,8 +120,9 @@ QVector<DetectionResult> YoloDetector::postprocess(const cv::Mat &output,
 
         if (maxScore < m_confThreshold) continue;
 
-        // Only keep cat (15) and dog (16)
-        if (maxClassId != COCO_CAT && maxClassId != COCO_DOG) continue;
+        // Keep person (0), cat (15), dog (16)
+        if (maxClassId != COCO_PERSON && maxClassId != COCO_CAT && maxClassId != COCO_DOG)
+            continue;
 
         // cx, cy, w, h in letterboxed coordinate space
         float cx = row[0];
@@ -158,14 +159,33 @@ QVector<DetectionResult> YoloDetector::postprocess(const cv::Mat &output,
         DetectionResult r;
         r.bbox = boxes[idx];
         r.classId = classIds[idx];
-        r.className = (classIds[idx] == COCO_CAT) ? "cat" : "dog";
         r.confidence = confidences[idx];
         r.center = QPointF(boxes[idx].x + boxes[idx].width / 2.0,
                            boxes[idx].y + boxes[idx].height / 2.0);
+        if (classIds[idx] == COCO_PERSON) {
+            r.className = "person";
+            r.isPerson = true;
+        } else {
+            r.className = (classIds[idx] == COCO_CAT) ? "cat" : "dog";
+            r.isPerson = false;
+        }
         results.append(r);
     }
 
     return results;
+}
+
+YoloDetector::DetectAllResult YoloDetector::detectAll(const cv::Mat &frame)
+{
+    DetectAllResult result;
+    QVector<DetectionResult> all = detect(frame);
+    for (auto &d : all) {
+        if (d.isPerson)
+            result.persons.append(d);
+        else
+            result.pets.append(d);
+    }
+    return result;
 }
 
 void YoloDetector::setConfidenceThreshold(float threshold) { m_confThreshold = threshold; }
